@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>🚌 Bus-Sitzplan</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #dbeafe, #f8fafc);
+    color: #172033;
+}
+
+header {
+    background: #2563eb;
+    color: white;
+    text-align: center;
+    padding: 25px 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,.15);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 30px;
+}
+
+header p {
+    margin: 8px 0 0;
+}
+
+.info {
+    width: min(95%, 650px);
+    margin: 20px auto;
+    padding: 18px;
+    background: white;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 5px 20px rgba(0,0,0,.08);
+}
+
+#counter {
+    margin: 8px 0;
+    font-weight: bold;
+}
+
+#status {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.my-seat {
+    display: none;
+    margin-top: 12px;
+    padding: 10px;
+    background: #dbeafe;
+    color: #1e40af;
+    border-radius: 10px;
+    font-weight: bold;
+}
+
+.bus {
+    width: min(95%, 650px);
+    margin: 20px auto 30px;
+    background: #334155;
+    border-radius: 40px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.2);
+}
+
+.driver {
+    background: #64748b;
+    color: white;
+    text-align: center;
+    padding: 15px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+.seats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 30px 1fr 1fr;
+    gap: 9px;
+}
+
+.seat {
+    min-height: 68px;
+    border: none;
+    border-radius: 12px;
+    background: #22c55e;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 7px;
+    transition: .15s;
+    box-shadow: 0 3px 6px rgba(0,0,0,.15);
+}
+
+.seat:hover {
+    transform: scale(1.04);
+}
+
+.seat.occupied {
+    background: #ef4444;
+}
+
+.seat.mine {
+    background: #f59e0b;
+    box-shadow: 0 0 0 3px #fbbf24;
+}
+
+.seat-number {
+    font-size: 15px;
+}
+
+.seat-name {
+    display: block;
+    margin-top: 5px;
+    font-size: 11px;
+    font-weight: bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: white;
+    animation: rainbowText 4s linear infinite;
+}
+
+.back-title {
+    color: white;
+    text-align: center;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.back-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 9px;
+}
+
+.legend {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    margin: 20px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+}
+
+.dot {
+    width: 17px;
+    height: 17px;
+    display: inline-block;
+    border-radius: 50%;
+    margin-right: 7px;
+}
+
+.green {
+    background: #22c55e;
+}
+
+.red {
+    background: #ef4444;
+}
+
+.orange {
+    background: #f59e0b;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-box {
+    width: 100%;
+    max-width: 400px;
+    background: white;
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 15px 50px rgba(0,0,0,.3);
+}
+
+.modal-box h2 {
+    margin-top: 0;
+}
+
+.modal-box input {
+    width: 100%;
+    padding: 13px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+    outline: none;
+}
+
+.modal-box input:focus {
+    border-color: #2563eb;
+}
+
+.buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.buttons button {
+    flex: 1;
+    padding: 13px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.cancel {
+    background: #e5e7eb;
+}
+
+.confirm {
+    background: #2563eb;
+    color: white;
+}
+
+.delete {
+    background: #ef4444;
+    color: white;
+}
+
+.admin-button {
+    display: block;
+    margin: 20px auto 40px;
+    padding: 13px 22px;
+    border: none;
+    border-radius: 10px;
+    background: #475569;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.admin-button:hover {
+    background: #334155;
+}
+
+@media (max-width: 500px) {
+
+    header h1 {
+        font-size: 24px;
+    }
+
+    .bus {
+        padding: 12px;
+        border-radius: 25px;
+    }
+
+    .seats {
+        grid-template-columns: 1fr 1fr 12px 1fr 1fr;
+        gap: 5px;
+    }
+
+    .back-row {
+        gap: 5px;
+    }
+
+    .seat {
+        min-height: 60px;
+        padding: 4px;
+    }
+
+    .seat-number {
+        font-size: 12px;
+    }
+
+    .seat-name {
+        font-size: 9px;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<header>
+
+<h1>🚌 Bus-Sitzplan</h1>
+
+<p>Wähle deinen Sitzplatz</p>
+
+</header>
+
+
+<div class="info">
+
+<strong>Sitzplatzübersicht</strong>
+
+<p id="counter">
+Lade Sitzplätze...
+</p>
+
+<div id="status">
+Verbinde mit Supabase...
+</div>
+
+<div id="mySeat"
+     class="my-seat">
+</div>
+
+</div>
+
+
+<div class="bus">
+
+<div class="driver">
+🚍 FAHRER / FRONT
+<br>
+<span>(Mats lehrn cooden)</span>
+</div>
+
+<div id="seats"
+     class="seats">
+</div>
+
+<div class="back-title">
+Opfer Reihe
+</div>
+
+<div id="backRow"
+     class="back-row">
+</div>
+
+</div>
+
+
+<div class="legend">
+
+<div class="legend-item">
+
+<span class="dot green"></span>
+
+Frei
+
+</div>
+
+
+<div class="legend-item">
+
+<span class="dot red"></span>
+
+Besetzt
+
+</div>
+
+
+<div class="legend-item">
+
+<span class="dot orange"></span>
+
+Dein Sitz
+
+</div>
+
+</div>
+
+
+<button
+    class="admin-button"
+    onclick="adminReset()">
+
+🔒 Admin – Sitzplan verwalten
+
+</button>
+
+
+
+<div id="modal"
+     class="modal">
+
+<div class="modal-box">
+
+<h2 id="modalTitle">
+💺 Sitz auswählen
+</h2>
+
+<p id="modalText">
+Bitte deinen Namen eingeben:
+</p>
+
+<input
+    id="name"
+    type="text"
+    maxlength="40"
+    placeholder="Vorname Nachname">
+
+
+<div class="buttons">
+
+<button
+    class="cancel"
+    onclick="closeModal()">
+
+Abbrechen
+
+</button>
+
+
+<button
+    id="confirmButton"
+    class="confirm"
+    onclick="reserveSeat()">
+
+Sitz reservieren
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+
+<script>
+
+
+/* =====================================================
+   SUPABASE
+===================================================== */
+
+const SUPABASE_URL =
+    "https://jnpgoqkisuvonnevqcjz.supabase.co";
+
+const SUPABASE_KEY =
+    "sb_publishable_Ib47uBtJ_W4v6tUVU69nlQ_AEObdEZS";
+
+
+const { createClient } = supabase;
+
+
+const db = createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+);
+
+
+
+/* =====================================================
+   EINSTELLUNGEN
+===================================================== */
+
+const TOTAL_SEATS = 53;
+
+const LAST_ROW = [
+    49,
+    50,
+    51,
+    52,
+    53
+];
+
+
+let reservations = {};
+
+let selectedSeat = null;
+
+
+let mySeat =
+    localStorage.getItem(
+        "bus_my_seat"
+    );
+
+
+let myName =
+    localStorage.getItem(
+        "bus_my_name"
+    );
+
+
+
+/* =====================================================
+   STATUS
+===================================================== */
+
+function setStatus(text) {
+
+    document.getElementById(
+        "status"
+    ).textContent = text;
+
+}
+
+
+
+/* =====================================================
+   EIGENEN SITZ ANZEIGEN
+===================================================== */
+
+function updateMySeatDisplay() {
+
+    const element =
+        document.getElementById(
+            "mySeat"
+        );
+
+
+    if (
+        mySeat &&
+        myName
+    ) {
+
+        element.style.display =
+            "block";
+
+
+        element.textContent =
+            "🟠 Dein Sitz: " +
+            mySeat +
+            " – " +
+            myName;
+
+    } else {
+
+        element.style.display =
+            "none";
+
+    }
+
+}
+
+
+
+/* =====================================================
+   SITZPLAN LADEN
+===================================================== */
+
+async function loadSeats() {
+
+    setStatus(
+        "⏳ Lade Sitzplan..."
+    );
+
+
+    const {
+        data,
+        error
+    } = await db
+        .from("bus_seats")
+        .select(
+            "seat_number,name"
+        )
+        .order(
+            "seat_number"
+        );
+
+
+    if (error) {
+
+        console.error(error);
+
+        setStatus(
+            "❌ Verbindung fehlgeschlagen"
+        );
+
+        return;
+
+    }
+
+
+    reservations = {};
+
+
+    data.forEach(row => {
+
+        if (row.name) {
+
+            reservations[
+                row.seat_number
+            ] = row.name;
+
+        }
+
+    });
+
+
+    if (
+        mySeat &&
+        !reservations[mySeat]
+    ) {
+
+        localStorage.removeItem(
+            "bus_my_seat"
+        );
+
+        localStorage.removeItem(
+            "bus_my_name"
+        );
+
+        mySeat = null;
+
+        myName = null;
+
+    }
+
+
+    if (
+        mySeat &&
+        myName &&
+        reservations[mySeat] &&
+        reservations[mySeat]
+            .toLowerCase()
+        !==
+        myName.toLowerCase()
+    ) {
+
+        localStorage.removeItem(
+            "bus_my_seat"
+        );
+
+        localStorage.removeItem(
+            "bus_my_name"
+        );
+
+        mySeat = null;
+
+        myName = null;
+
+    }
+
+
+    createSeats();
+
+    updateMySeatDisplay();
+
+
+    setStatus(
+        "🟢 Online – Sitzplan synchronisiert"
+    );
+
+}
+
+
+
+/* =====================================================
+   SITZE ERSTELLEN
+===================================================== */
+
+function createSeats() {
+
+    const container =
+        document.getElementById(
+            "seats"
+        );
+
+
+    const backRow =
+        document.getElementById(
+            "backRow"
+        );
+
+
+    container.innerHTML = "";
+
+    backRow.innerHTML = "";
+
+
+    for (
+        let i = 1;
+        i <= 48;
+        i++
+    ) {
+
+        if (
+            (i - 1) % 4 === 2
+        ) {
+
+            const aisle =
+                document.createElement(
+                    "div"
+                );
+
+            container.appendChild(
+                aisle
+            );
+
+        }
+
+
+        container.appendChild(
+            createSeat(i)
+        );
+
+    }
+
+
+    LAST_ROW.forEach(
+        number => {
+
+            backRow.appendChild(
+                createSeat(number)
+            );
+
+        }
+    );
+
+
+    updateCounter();
+
+}
+
+
+
+/* =====================================================
+   SITZ ERSTELLEN
+===================================================== */
+
+function createSeat(number) {
+
+    const button =
+        document.createElement(
+            "button"
+        );
+
+
+    button.className =
+        "seat";
+
+
+    const name =
+        reservations[number];
+
+
+    if (
+        mySeat &&
+        Number(mySeat) === number
+    ) {
+
+        button.classList.add(
+            "mine"
+        );
+
+    }
+
+
+    if (name) {
+
+        button.classList.add(
+            "occupied"
+        );
+
+    }
+
+
+    /*
+       HIER IST DIE ERGÄNZUNG:
+
+       Bei Sitz 48 wird immer
+       "Programmierer" angezeigt.
+    */
+
+    let displayedName;
+
+
+    if (number === 48) {
+
+        displayedName =
+            "Programmierer Jonas.O";
+
+    } else if (name) {
+
+        displayedName =
+            escapeHtml(name);
+
+    } else {
+
+        displayedName =
+            "Frei";
+
+    }
+
+
+    button.innerHTML = `
+
+        <span class="seat-number">
+            Sitz ${number}
+        </span>
+
+        <span class="seat-name">
+            ${displayedName}
+        </span>
+
+    `;
+
+
+    button.onclick = function() {
+
+        selectSeat(number);
+
+    };
+
+
+    return button;
+
+}
+
+
+
+/* =====================================================
+   SITZ AUSWÄHLEN
+===================================================== */
+
+function selectSeat(number) {
+
+
+    if (
+        mySeat &&
+        Number(mySeat) === number
+    ) {
+
+        selectedSeat = number;
+
+
+        document.getElementById(
+            "modalTitle"
+        ).textContent =
+            "🟠 Sitz " + number;
+
+
+        document.getElementById(
+            "modalText"
+        ).textContent =
+            "Gib deinen Namen ein, um deinen Sitz zurückzugeben:";
+
+
+        document.getElementById(
+            "name"
+        ).value = "";
+
+
+        const button =
+            document.getElementById(
+                "confirmButton"
+            );
+
+
+        button.textContent =
+            "↩️ Sitz zurückgeben";
+
+
+        button.className =
+            "delete";
+
+
+        button.onclick =
+            releaseSeat;
+
+
+        openModal();
+
+
+        return;
+
+    }
+
+
+    if (mySeat) {
+
+        alert(
+            "❌ Du hast bereits Sitz " +
+            mySeat +
+            " reserviert.\n\n" +
+            "Gib zuerst deinen eigenen Sitz zurück."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        !reservations[number]
+    ) {
+
+        selectedSeat = number;
+
+
+        document.getElementById(
+            "modalTitle"
+        ).textContent =
+            "💺 Sitz " + number;
+
+
+        document.getElementById(
+            "modalText"
+        ).textContent =
+            "Bitte deinen Namen eingeben:";
+
+
+        document.getElementById(
+            "name"
+        ).value = "";
+
+
+        const button =
+            document.getElementById(
+                "confirmButton"
+            );
+
+
+        button.textContent =
+            "Sitz reservieren";
+
+
+        button.className =
+            "confirm";
+
+
+        button.onclick =
+            reserveSeat;
+
+
+        openModal();
+
+
+        return;
+
+    }
+
+
+    alert(
+        "🔴 Dieser Sitz ist bereits für " +
+        reservations[number] +
+        " reserviert."
+    );
+
+}
+
+
+
+/* =====================================================
+   MODAL
+===================================================== */
+
+function openModal() {
+
+    document
+        .getElementById(
+            "modal"
+        )
+        .classList.add(
+            "show"
+        );
+
+
+    setTimeout(
+        () => {
+
+            document
+                .getElementById(
+                    "name"
+                )
+                .focus();
+
+        },
+        100
+    );
+
+}
+
+
+function closeModal() {
+
+    document
+        .getElementById(
+            "modal"
+        )
+        .classList.remove(
+            "show"
+        );
+
+
+    selectedSeat = null;
+
+}
+
+
+
+/* =====================================================
+   SITZ RESERVIEREN
+===================================================== */
+
+async function reserveSeat() {
+
+    if (
+        selectedSeat === null
+    ) {
+
+        return;
+
+    }
+
+
+    if (mySeat) {
+
+        alert(
+            "❌ Du hast bereits Sitz " +
+            mySeat +
+            " reserviert."
+        );
+
+        closeModal();
+
+        return;
+
+    }
+
+
+    const name =
+        document
+        .getElementById(
+            "name"
+        )
+        .value
+        .trim();
+
+
+    if (!name) {
+
+        alert(
+            "Bitte gib deinen Namen ein."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        name.length < 2
+    ) {
+
+        alert(
+            "Der Name ist zu kurz."
+        );
+
+        return;
+
+    }
+
+
+    const {
+        data: existingName,
+        error: nameError
+    } = await db
+        .from("bus_seats")
+        .select(
+            "seat_number,name"
+        )
+        .ilike(
+            "name",
+            name
+        );
+
+
+    if (nameError) {
+
+        console.error(
+            nameError
+        );
+
+        alert(
+            "Fehler beim Prüfen des Namens."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        existingName &&
+        existingName.length > 0
+    ) {
+
+        alert(
+            "❌ Dieser Name hat bereits einen Sitz:\n\n" +
+            "Sitz " +
+            existingName[0].seat_number
+        );
+
+        return;
+
+    }
+
+
+    const {
+        data,
+        error
+    } = await db
+        .from("bus_seats")
+        .select(
+            "name"
+        )
+        .eq(
+            "seat_number",
+            selectedSeat
+        )
+        .single();
+
+
+    if (error) {
+
+        alert(
+            "Fehler beim Prüfen des Sitzes."
+        );
+
+        return;
+
+    }
+
+
+    if (data.name) {
+
+        alert(
+            "❌ Dieser Sitz wurde gerade reserviert."
+        );
+
+        closeModal();
+
+        loadSeats();
+
+        return;
+
+    }
+
+
+    const {
+        error: updateError
+    } = await db
+        .from("bus_seats")
+        .update({
+
+            name: name,
+
+            updated_at:
+                new Date().toISOString()
+
+        })
+        .eq(
+            "seat_number",
+            selectedSeat
+        )
+        .is(
+            "name",
+            null
+        );
+
+
+    if (updateError) {
+
+        console.error(
+            updateError
+        );
+
+        alert(
+            "❌ Reservierung fehlgeschlagen:\n\n" +
+            updateError.message
+        );
+
+        return;
+
+    }
+
+
+    mySeat =
+        String(selectedSeat);
+
+    myName =
+        name;
+
+
+    localStorage.setItem(
+        "bus_my_seat",
+        mySeat
+    );
+
+
+    localStorage.setItem(
+        "bus_my_name",
+        myName
+    );
+
+
+    closeModal();
+
+    await loadSeats();
+
+
+    alert(
+        "✅ Sitz " +
+        selectedSeat +
+        " wurde reserviert!"
+    );
+
+}
+
+
+
+/* =====================================================
+   SITZ ZURÜCKGEBEN
+===================================================== */
+
+async function releaseSeat() {
+
+    if (
+        selectedSeat === null
+    ) {
+
+        return;
+
+    }
+
+
+    if (
+        !mySeat ||
+        Number(mySeat) !==
+        Number(selectedSeat)
+    ) {
+
+        alert(
+            "❌ Das ist nicht dein Sitz."
+        );
+
+        return;
+
+    }
+
+
+    const enteredName =
+        document
+        .getElementById(
+            "name"
+        )
+        .value
+        .trim();
+
+
+    if (!enteredName) {
+
+        alert(
+            "Bitte gib deinen Namen ein."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        enteredName.toLowerCase()
+        !==
+        myName.toLowerCase()
+    ) {
+
+        alert(
+            "❌ Der Name stimmt nicht."
+        );
+
+        return;
+
+    }
+
+
+    const confirmed =
+        confirm(
+            "Möchtest du Sitz " +
+            selectedSeat +
+            " wirklich zurückgeben?"
+        );
+
+
+    if (!confirmed) {
+
+        return;
+
+    }
+
+
+    const {
+        error
+    } = await db
+        .from("bus_seats")
+        .update({
+
+            name: null,
+
+            updated_at:
+                new Date().toISOString()
+
+        })
+        .eq(
+            "seat_number",
+            selectedSeat
+        )
+        .eq(
+            "name",
+            myName
+        );
+
+
+    if (error) {
+
+        console.error(error);
+
+        alert(
+            "❌ Sitz konnte nicht freigegeben werden:\n\n" +
+            error.message
+        );
+
+        return;
+
+    }
+
+
+    localStorage.removeItem(
+        "bus_my_seat"
+    );
+
+
+    localStorage.removeItem(
+        "bus_my_name"
+    );
+
+
+    mySeat = null;
+
+    myName = null;
+
+
+    closeModal();
+
+    await loadSeats();
+
+
+    alert(
+        "✅ Dein Sitz wurde freigegeben."
+    );
+
+}
+
+
+
+/* =====================================================
+   ZÄHLER
+===================================================== */
+
+function updateCounter() {
+
+    const occupied =
+        Object.keys(
+            reservations
+        ).length;
+
+
+    const free =
+        TOTAL_SEATS -
+        occupied;
+
+
+    document.getElementById(
+        "counter"
+    ).textContent =
+
+        free +
+        " freie Plätze · " +
+        occupied +
+        " besetzt";
+
+}
+
+
+
+/* =====================================================
+   ADMIN
+===================================================== */
+
+async function adminReset() {
+
+    const code =
+        prompt(
+            "🔒 ADMIN-BEREICH\n\n" +
+            "Bitte Admin-Code eingeben:"
+        );
+
+
+    if (
+        code === null
+    ) {
+
+        return;
+
+    }
+
+
+    const ADMIN_CODE =
+        "10041004";
+
+
+    if (
+        code.trim()
+        !==
+        ADMIN_CODE
+    ) {
+
+        alert(
+            "❌ Falscher Admin-Code!"
+        );
+
+        return;
+
+    }
+
+
+    const choice =
+        prompt(
+            "🔒 ADMIN-RÜCKSETZUNG\n\n" +
+
+            "1 = Alle Sitze zurücksetzen\n" +
+
+            "2 = Einzelnen Sitz zurücksetzen\n\n" +
+
+            "Bitte 1 oder 2 eingeben:"
+        );
+
+
+    if (
+        choice === null
+    ) {
+
+        return;
+
+    }
+
+
+    /*
+       ALLE SITZE
+    */
+
+    if (
+        choice.trim()
+        ===
+        "1"
+    ) {
+
+        const confirmReset =
+            confirm(
+                "⚠️ ACHTUNG!\n\n" +
+
+                "ALLE 53 Sitzplätze werden freigegeben.\n\n" +
+
+                "Wirklich alle zurücksetzen?"
+            );
+
+
+        if (
+            !confirmReset
+        ) {
+
+            return;
+
+        }
+
+
+        setStatus(
+            "⏳ Setze alle Sitze zurück..."
+        );
+
+
+        const {
+            error
+        } = await db
+            .from("bus_seats")
+            .update({
+
+                name: null,
+
+                updated_at:
+                    new Date().toISOString()
+
+            })
+            .not(
+                "seat_number",
+                "is",
+                null
+            );
+
+
+        if (error) {
+
+            console.error(error);
+
+            alert(
+                "❌ Reset fehlgeschlagen:\n\n" +
+                error.message
+            );
+
+            return;
+
+        }
+
+
+        localStorage.removeItem(
+            "bus_my_seat"
+        );
+
+        localStorage.removeItem(
+            "bus_my_name"
+        );
+
+
+        mySeat = null;
+
+        myName = null;
+
+
+        await loadSeats();
+
+
+        alert(
+            "✅ Alle 53 Sitze wurden zurückgesetzt."
+        );
+
+
+        return;
+
+    }
+
+
+    /*
+       EINZELNEN SITZ
+    */
+
+    if (
+        choice.trim()
+        ===
+        "2"
+    ) {
+
+        const occupiedSeats =
+            Object.keys(
+                reservations
+            )
+            .map(Number)
+            .sort(
+                (a,b) => a - b
+            );
+
+
+        if (
+            occupiedSeats.length
+            ===
+            0
+        ) {
+
+            alert(
+                "🟢 Momentan sind keine Sitze belegt."
+            );
+
+            return;
+
+        }
+
+
+        let list = "";
+
+
+        occupiedSeats.forEach(
+            seat => {
+
+                list +=
+                    "Sitz " +
+                    seat +
+                    " – " +
+                    reservations[seat] +
+                    "\n";
+
+            }
+        );
+
+
+        const selected =
+            prompt(
+                "🔒 BELEGTEN SITZ AUSWÄHLEN\n\n" +
+
+                list +
+
+                "\nGib die Sitznummer ein:"
+            );
+
+
+        if (
+            selected === null
+        ) {
+
+            return;
+
+        }
+
+
+        const seatNumber =
+            Number(
+                selected.trim()
+            );
+
+
+        if (
+            !occupiedSeats.includes(
+                seatNumber
+            )
+        ) {
+
+            alert(
+                "❌ Dieser Sitz ist nicht belegt oder existiert nicht."
+            );
+
+            return;
+
+        }
+
+
+        const seatOwner =
+            reservations[
+                seatNumber
+            ];
+
+
+        const confirmSingle =
+            confirm(
+                "⚠️ SITZ ZURÜCKSETZEN\n\n" +
+
+                "Sitz: " +
+                seatNumber +
+
+                "\nName: " +
+                seatOwner +
+
+                "\n\nDiesen Sitz wirklich freigeben?"
+            );
+
+
+        if (
+            !confirmSingle
+        ) {
+
+            return;
+
+        }
+
+
+        setStatus(
+            "⏳ Setze Sitz " +
+            seatNumber +
+            " zurück..."
+        );
+
+
+        const {
+            error
+        } = await db
+            .from("bus_seats")
+            .update({
+
+                name: null,
+
+                updated_at:
+                    new Date().toISOString()
+
+            })
+            .eq(
+                "seat_number",
+                seatNumber
+            );
+
+
+        if (error) {
+
+            console.error(error);
+
+            alert(
+                "❌ Sitz konnte nicht zurückgesetzt werden:\n\n" +
+                error.message
+            );
+
+            return;
+
+        }
+
+
+        if (
+            Number(mySeat)
+            ===
+            seatNumber
+        ) {
+
+            localStorage.removeItem(
+                "bus_my_seat"
+            );
+
+            localStorage.removeItem(
+                "bus_my_name"
+            );
+
+            mySeat = null;
+
+            myName = null;
+
+        }
+
+
+        await loadSeats();
+
+
+        alert(
+            "✅ Sitz " +
+            seatNumber +
+            " (" +
+            seatOwner +
+            ") wurde zurückgesetzt."
+        );
+
+
+        return;
+
+    }
+
+
+    alert(
+        "❌ Ungültige Auswahl.\n\n" +
+        "Bitte 1 oder 2 eingeben."
+    );
+
+}
+
+
+
+/* =====================================================
+   REALTIME
+===================================================== */
+
+function startRealtime() {
+
+    db
+        .channel(
+            "bus-seats-live"
+        )
+        .on(
+            "postgres_changes",
+
+            {
+                event: "*",
+
+                schema: "public",
+
+                table: "bus_seats"
+            },
+
+            function(payload) {
+
+                console.log(
+                    "🔄 Sitzplan geändert:",
+                    payload
+                );
+
+                loadSeats();
+
+            }
+        )
+        .subscribe();
+
+}
+
+
+
+/* =====================================================
+   HTML SICHER MACHEN
+===================================================== */
+
+function escapeHtml(text) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+
+    div.textContent =
+        text;
+
+
+    return div.innerHTML;
+
+}
+
+
+
+/* =====================================================
+   TASTATUR
+===================================================== */
+
+document.addEventListener(
+    "keydown",
+
+    function(event) {
+
+        if (
+            event.key === "Escape"
+        ) {
+
+            closeModal();
+
+        }
+
+
+        if (
+            event.key === "Enter"
+            &&
+            document
+                .getElementById(
+                    "modal"
+                )
+                .classList
+                .contains(
+                    "show"
+                )
+        ) {
+
+            document
+                .getElementById(
+                    "confirmButton"
+                )
+                .click();
+
+        }
+
+    }
+);
+
+
+
+/* =====================================================
+   START
+===================================================== */
+
+async function start() {
+
+    await loadSeats();
+
+    startRealtime();
+
+}
+
+
+start();
+
+</script>
+
+</body>
+
+</html>
